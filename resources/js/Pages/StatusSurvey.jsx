@@ -1,12 +1,46 @@
 import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, router } from "@inertiajs/react";
+import { Head, usePage, router } from "@inertiajs/react";
+import axios from "axios";
 
 const SurveyStatusBox = () => {
     const [status, setStatus] = useState("Tanpa batasan");
-    const [maxResponses, setMaxResponses] = useState(""); // State untuk jumlah responden
-    const [startDate, setStartDate] = useState(""); // State untuk tanggal mulai
-    const [endDate, setEndDate] = useState(""); // State untuk tanggal berakhir
+    const [maxResponses, setMaxResponses] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
+    // Ambil slug dari route (pastikan rute-nya /status-survey/:slug)
+    const { slug } = usePage().props;
+
+    const handleSubmit = async () => {
+        try {
+            const payload = {
+                status: "draft", // atau nanti "open"
+            };
+    
+            // Kirim sesuai status_mode
+            if (status === "Private") {
+                payload.status_mode = "Private";
+                payload.max_responses = parseInt(maxResponses) || null;
+            }
+    
+            if (status === "Terbatas") {
+                payload.status_mode = "Terbatas";
+                payload.start_date = startDate || null;
+                payload.end_date = endDate || null;
+            }
+    
+            if (status === "Tanpa batasan") {
+                payload.status_mode = "Tanpa batasan";
+            }
+    
+            await axios.post(`/status-survey/${slug}/set-status`, payload);
+            router.visit(`/collect-survey/${slug}`);
+        } catch (error) {
+            console.error("Gagal update status:", error.response?.data || error);
+            alert("Gagal mengaktifkan survei.");
+        }
+    };    
 
     return (
         <AuthenticatedLayout>
@@ -14,13 +48,11 @@ const SurveyStatusBox = () => {
 
             <div className="py-12 px-7">
                 <div className="p-6 bg-white rounded-lg shadow-md max-w-7xl mx-auto">
-                    {/* Page Title */}
                     <div className="border-b pb-2">
                         <h3 className="text-lg font-bold text-gray-800">Status</h3>
                         <p className="text-gray-600 text-sm">Decide your survey status will be:</p>
                     </div>
 
-                    {/* Dropdown */}
                     <div className="mb-4 mt-4">
                         <select
                             value={status}
@@ -33,7 +65,6 @@ const SurveyStatusBox = () => {
                         </select>
                     </div>
 
-                    {/* Input Jumlah Responden - Muncul hanya jika "Private" dipilih */}
                     {status === "Private" && (
                         <div className="mb-4 flex items-center">
                             <div className="h-full p-2 bg-gray-200 text-gray-700 text-sm rounded-sm">
@@ -50,7 +81,6 @@ const SurveyStatusBox = () => {
                         </div>
                     )}
 
-                    {/* Input Tanggal - Muncul hanya jika "Dibatasi oleh waktu" dipilih */}
                     {status === "Terbatas" && (
                         <div className="mb-4 flex flex-col gap-2">
                             <div className="flex items-center gap-2">
@@ -78,13 +108,12 @@ const SurveyStatusBox = () => {
                         </div>
                     )}
 
-                    {/* Submit Button */}
                     <div className="text-center mt-6">
                         <button
                             className="bg-green-500 text-white font-medium px-6 py-2 rounded-lg hover:bg-green-600"
-                            onClick={() => router.visit('/collect-survey')}
+                            onClick={handleSubmit}
                         >
-                            Activate
+                            DONE
                         </button>
                     </div>
                 </div>

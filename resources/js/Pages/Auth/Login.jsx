@@ -6,6 +6,8 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Head, Link, useForm } from '@inertiajs/react';
+import axios from 'axios';
+import { setAuthToken } from '../../services/api';
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -22,8 +24,25 @@ export default function Login({ status, canResetPassword }) {
 
     const submit = (e) => {
         e.preventDefault();
-
-        post(route('login'));
+    
+        post(route('login'), {
+            onSuccess: () => {
+                // Setelah login Breeze sukses, ambil token dari API login
+                axios.post('/api/login', {
+                    email: data.email,
+                    password: data.password
+                })
+                .then((res) => {
+                    const token = res.data.token;
+                    localStorage.setItem('token', token);
+                    setAuthToken(token);
+                    console.log('Token berhasil disimpan');
+                })
+                .catch((err) => {
+                    console.error('Gagal ambil token:', err);
+                });
+            }
+        });
     };
 
     return (
