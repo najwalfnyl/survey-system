@@ -57,9 +57,6 @@ const CollectResponse = () => {
                             readOnly
                             className="border border-gray-300 p-2 text-sm rounded-sm bg-white w-full text-gray-700"
                         />
-                        <button className="border border-gray-300 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100">
-                            Customize
-                        </button>
                         <button
                             onClick={handleCopy}
                             className="border border-gray-300 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100"

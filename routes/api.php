@@ -47,17 +47,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/surveys', [SurveyController::class, 'store']);
     Route::get('/surveys/{survey}', [SurveyController::class, 'show']);
     Route::patch('/surveys/{survey}/update-title', [SurveyController::class, 'updateTitle']);
-    Route::post('/surveys/{survey:slug}/set-status', [SurveyController::class, 'setStatus']);
+    // Route::post('/surveys/{survey:slug}/set-status', [SurveyController::class, 'setStatus']);
     Route::post('/surveys/{survey}/questions', [SurveyController::class, 'storeQuestions']);
+Route::patch('/status-survey/{slug}/set-status', [SurveyController::class, 'setStatus']);
 
     // Lihat semua response dari satu survei
     Route::get('/surveys/{surveyId}/responses', [ResponseController::class, 'index']);
 
-    // routes/api.php
-    Route::get('/survey-slug/{slug}/respondents', [SurveyController::class, 'getRespondentDataBySlug']);
-
-    // Untuk halaman analyze via Inertia
-Route::get('/analyze-survey/{slug}', [SurveyController::class, 'analyze'])->name('survey.analyze');
+    Route::get('/api/analyze-survey/{slug}', [SurveyController::class, 'analyze'])->name('survey.analyze');
 
 // Untuk ambil summary data JSON
 Route::get('/api/surveys/{survey}/analyze', [SurveyController::class, 'analyzeSummary']);

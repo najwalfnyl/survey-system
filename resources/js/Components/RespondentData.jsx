@@ -1,41 +1,54 @@
-import React from "react";
-import { usePage } from "@inertiajs/react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
-const RespondentData = () => {
-  const { questions = [], responses = [] } = usePage().props;
+const RespondentData = ({ slug }) => {
+  const [questions, setQuestions] = useState([]);
+  const [responses, setResponses] = useState([]);
+
+  useEffect(() => {
+    axios.get(`/survey/${slug}/respondents`)
+      .then(res => {
+        setQuestions(res.data.questions);
+        setResponses(res.data.responses);
+      })
+      .catch(console.error);
+  }, [slug]);
+
+  if (responses.length === 0) {
+    return <p className="text-center text-gray-500 mt-6">Belum ada data responden.</p>;
+  }
 
   return (
-    <div className="bg-gray-200 p-6 rounded-lg shadow-md">
-      {responses.length === 0 ? (
-        <p className="text-center text-gray-500">Belum ada data responden.</p>
-      ) : (
-        <table className="w-full border-collapse bg-white shadow-md rounded-lg">
-          <thead className="bg-gray-300">
-            <tr>
-              <th className="border px-4 py-2">#</th>
-              <th className="border px-4 py-2">Input Date</th>
-              <th className="border px-4 py-2">Input Time</th>
-              {questions.map((q, idx) => (
-                <th key={q.id} className="border px-4 py-2">{`Q${idx + 1}`}</th>
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm">
+        <thead>
+          <tr className="bg-gray-100 text-gray-700 text-sm uppercase">
+            <th className="border px-4 py-2 sticky left-0 bg-gray-100 z-10">#</th>
+            <th className="border px-4 py-2">Input Date</th>
+            <th className="border px-4 py-2">Input Time</th>
+            {questions.map((q, index) => (
+              <th key={q.id} className="border px-4 py-2 max-w-xs break-words text-left">
+                Q{index + 1}
+              </th>
+            ))}
+
+          </tr>
+        </thead>
+        <tbody>
+          {responses.map(row => (
+            <tr key={row.id} className="text-sm hover:bg-gray-50">
+              <td className="border px-4 py-2 sticky left-0 bg-white font-medium">{row.id}</td>
+              <td className="border px-4 py-2">{row.date}</td>
+              <td className="border px-4 py-2">{row.time}</td>
+              {questions.map(q => (
+                <td key={q.id} className="border px-4 py-2 max-w-xs break-words">
+                  {row.answers[q.id] || "-"}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {responses.map((row) => (
-              <tr key={row.id} className="text-center">
-                <td className="border px-4 py-2">{row.index}</td>
-                <td className="border px-4 py-2">{row.date}</td>
-                <td className="border px-4 py-2">{row.time}</td>
-                {questions.map((q) => (
-                  <td key={q.id} className="border px-4 py-2">
-                    {row.answers[q.id] ?? "-"}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

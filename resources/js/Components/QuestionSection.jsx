@@ -8,8 +8,29 @@ export default function QuestionSection({ onQuestionsChange }) {
       type: "Choose Type",
       isOpen: false,
       choices: [],
-      likertLabels: [],
-      placeholderText: ""
+      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+      placeholderText: "",
+      entities: [], // Mengubah dari string menjadi array untuk mendukung banyak entitas
+    },
+    {
+      id: 2,
+      text: "",
+      type: "Choose Type",
+      isOpen: false,
+      choices: [],
+      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+      placeholderText: "",
+      entities: [],
+    },
+    {
+      id: 3,
+      text: "",
+      type: "Choose Type",
+      isOpen: false,
+      choices: [],
+      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+      placeholderText: "",
+      entities: [],
     }
   ]);
 
@@ -51,6 +72,24 @@ export default function QuestionSection({ onQuestionsChange }) {
     setQuestions(updatedQuestions);
   };
 
+  const addEntity = (index) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index].entities.push(""); // Tambahkan entitas kosong
+    setQuestions(updatedQuestions);
+  };
+
+  const updateEntity = (index, entityIndex, value) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index].entities[entityIndex] = value; // Perbarui entitas berdasarkan indeks
+    setQuestions(updatedQuestions);
+  };
+
+  const removeEntity = (index, entityIndex) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index].entities.splice(entityIndex, 1); // Hapus entitas berdasarkan indeks
+    setQuestions(updatedQuestions);
+  };
+
   const handleAddQuestion = () => {
     const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
     const newQuestion = {
@@ -59,14 +98,15 @@ export default function QuestionSection({ onQuestionsChange }) {
       type: "Choose Type",
       isOpen: false,
       choices: [],
-      likertLabels: [],
-      placeholderText: ""
+      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+      placeholderText: "",
+      entities: [], // Inisialisasi entitas sebagai array kosong
     };
     setQuestions([...questions, newQuestion]);
   };
 
   const handleDeleteQuestion = (index) => {
-    if (questions.length === 1) return; // minimal 1 pertanyaan wajib ada
+    if (questions.length === 1) return; // Minimal 1 pertanyaan wajib ada
     const updated = [...questions];
     updated.splice(index, 1);
     setQuestions(updated);
@@ -134,13 +174,7 @@ export default function QuestionSection({ onQuestionsChange }) {
                           }
 
                           if (option.label === "Likert Scale") {
-                            handleChange(index, "likertLabels", [
-                              "Strongly Disagree",
-                              "Disagree",
-                              "Neutral",
-                              "Agree",
-                              "Strongly Agree"
-                            ]);
+                            handleChange(index, "entities", []); // Reset entitas saat memilih Likert
                           }
                         }}
                       >
@@ -201,6 +235,32 @@ export default function QuestionSection({ onQuestionsChange }) {
 
             {question.type === "Likert Scale" && (
               <div className="mt-3 space-y-2">
+                <h4 className="text-sm font-semibold">Entities</h4>
+                {question.entities.map((entity, entityIndex) => (
+                  <div key={entityIndex} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      className="border p-2 w-full text-sm ml-8 rounded border-gray-400"
+                      placeholder={`Entity ${entityIndex + 1}`}
+                      value={entity}
+                      onChange={(e) => updateEntity(index, entityIndex, e.target.value)}
+                    />
+                    <button
+                      onClick={() => removeEntity(index, entityIndex)}
+                      className="p-2 bg-red-500 text-white rounded w-10 h-10 flex items-center justify-center"
+                    >
+                      -
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => addEntity(index)}
+                  className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  + Add Entity
+                </button>
+
+                <h4 className="text-sm font-semibold">Likert Scale</h4>
                 {question.likertLabels.map((label, labelIndex) => (
                   <div key={labelIndex} className="flex items-center gap-2">
                     <input

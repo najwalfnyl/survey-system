@@ -4,33 +4,35 @@ import { Head, Link } from "@inertiajs/react";
 import API from "../services/api"; // asumsi API service
 
 export default function SurveyPreview({ auth, survey: initialSurvey }) {
-    const [survey, setSurvey] = useState(initialSurvey); // 
-    const [answers, setAnswers] = useState({});
-    const slug = initialSurvey?.slug;
-  
+  const [survey, setSurvey] = useState(initialSurvey);
+  const [answers, setAnswers] = useState({});
+  const slug = initialSurvey?.slug;
 
   useEffect(() => {
     API.get(`/survey-link/${slug}`)
-        .then((res) => {
-            console.log("Data dari backend:", res.data); 
-            console.log("Pertanyaan:", res.data.questions); 
-            setSurvey(res.data);
-
-            const initialAnswers = {};
-            res.data.questions.forEach((q) => {
-                initialAnswers[q.id] = "";
-            });
-            setAnswers(initialAnswers);
-        })
-        .catch((err) => {
-            console.error("Gagal ambil survey", err);
+      .then((res) => {
+        console.log("Data dari backend:", res.data);
+        console.log("Pertanyaan:", res.data.questions);
+        res.data.questions.forEach((q) => {
+          console.log(`Likert Scales for question ${q.id}:`, q.likertScales);
         });
-}, []);
+        setSurvey(res.data);
+        // ... (rest of your code)
+      })
+      .catch((err) => {
+        console.error("Gagal ambil survey", err);
+      });
+  }, []);
 
-  const handleInputChange = (questionId, value) => {
+
+
+  const handleInputChange = (questionId, key, value) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: value
+      [questionId]: {
+        ...prev[questionId],
+        [key]: value,
+      },
     }));
   };
 
@@ -57,8 +59,8 @@ export default function SurveyPreview({ auth, survey: initialSurvey }) {
                   <input
                     type="text"
                     placeholder={q.placeholder_text}
-                    value={answers[q.id] || ""}
-                    onChange={(e) => handleInputChange(q.id, e.target.value)}
+                    value={answers[q.id]?.scale || ""}
+                    onChange={(e) => handleInputChange(q.id, "scale", e.target.value)}
                     className="w-full border rounded-lg p-2 mt-2"
                   />
                 )}
@@ -71,8 +73,8 @@ export default function SurveyPreview({ auth, survey: initialSurvey }) {
                         type="radio"
                         name={`q${q.id}`}
                         value={opt.option_text}
-                        checked={answers[q.id] === opt.option_text}
-                        onChange={(e) => handleInputChange(q.id, e.target.value)}
+                        checked={answers[q.id]?.scale === opt.option_text}
+                        onChange={(e) => handleInputChange(q.id, "scale", e.target.value)}
                       />
                       <span>{opt.option_text}</span>
                     </label>
@@ -80,20 +82,46 @@ export default function SurveyPreview({ auth, survey: initialSurvey }) {
 
                 {/* Likert Scale */}
                 {q.question_type === "Likert Scale" && (
-                  <div className="flex space-x-4 mt-2">
-                    {q.options.map((opt, i) => (
-                      <label key={i} className="flex flex-col items-center">
-                        <span>{opt.option_text}</span>
-                        <input
-                          type="radio"
-                          name={`q${q.id}`}
-                          value={opt.option_text}
-                          checked={answers[q.id] === opt.option_text}
-                          onChange={(e) => handleInputChange(q.id, e.target.value)}
-                          className="w-6 h-6"
-                        />
-                      </label>
-                    ))}
+                  <div className="mt-4">
+                    {/* Dropdown untuk Entitas */}
+                    <div className="mb-2">
+                      <label className="block font-semibold mb-1">Select Entity:</label>
+                      <select
+                        value={answers[q.id]?.entity || ""}
+                        onChange={(e) => handleInputChange(q.id, "entity", e.target.value)}
+                        className="w-full border rounded-lg p-2"
+                      >
+                        <option value="">-- Select Entity --</option>
+                        {q.entities && q.entities.map((entity) => (
+                          <option key={entity.id} value={entity.entity_name}>
+                            {entity.entity_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Radio Buttons untuk Skala Likert */}
+                    {/* Radio Buttons untuk Skala Likert */}
+                    <div className="flex space-x-4 mt-2">
+                      {q.likert_scales && q.likert_scales.length > 0 ? (
+                        q.likert_scales.map((scale) => (
+                          <label key={scale.id} className="flex flex-col items-center">
+                            <span>{scale.scale_label}</span>
+                            <input
+                              type="radio"
+                              name={`q${q.id}`}
+                              value={scale.scale_value}
+                              checked={answers[q.id]?.scale === scale.scale_value.toString()}
+                              onChange={(e) => handleInputChange(q.id, "scale", e.target.value)}
+                              className="w-6 h-6"
+                            />
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-gray-500">No scales available for this question.</p>
+                      )}
+                    </div>
+
                   </div>
                 )}
               </div>
@@ -104,13 +132,12 @@ export default function SurveyPreview({ auth, survey: initialSurvey }) {
 
           {/* DONE button */}
           <div className="text-center mt-6">
-          <Link
-  href={route("status-survey", { slug: survey.slug })}
-  className="bg-green-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-600 inline-block"
->
-  DONE
-</Link>
-
+            <Link
+              href={route("status-survey", { slug: survey.slug })}
+              className="bg-green-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-600 inline-block"
+            >
+              DONE
+            </Link>
           </div>
         </div>
       </div>

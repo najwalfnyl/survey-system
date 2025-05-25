@@ -30,7 +30,17 @@ Route::get('/status-survey/{slug}', function ($slug) {
     ]);
 })->middleware('auth')->name('status-survey');
 
-Route::get('/analyze-survey/{slug}', [SurveyController::class, 'analyze'])->name('analyze-survey.show');
+Route::get('/analyze-survey/{slug}', function ($slug) {
+    $survey = Survey::where('slug', $slug)->firstOrFail();
+
+    return Inertia::render('AnalyzeSurvey', [
+        'survey' => $survey
+    ]);
+})->name('analyze-survey.show');
+
+Route::get('/api/analyze-survey/{slug}', [SurveyController::class, 'analyze'])->name('survey.analyze');
+
+Route::get('/survey/{slug}/respondents', [SurveyController::class, 'respondentData'])->name('survey.respondents');
 
 
 Route::get('/collect-survey/{slug}', function ($slug) {
@@ -56,7 +66,7 @@ Route::get('/', function () {
 
 Route::get('/dashboard', [SurveyController::class, 'dashboard'])->middleware(['auth'])->name('dashboard');
 
-Route::get('/analyze-survey/{slug}/export', [SurveyController::class, 'exportCsv'])->name('survey.export');
+Route::get('/survey/{slug}/export', [SurveyController::class, 'exportCsv'])->name('survey.export');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -81,6 +91,7 @@ Route::get('/respond/{slug}', function ($slug) {
 })->name('respond-survey');
 
 Route::post('/status-survey/{slug}/set-status', [SurveyController::class, 'setStatus'])->middleware('auth');
+// routes/api.php
 
 Route::get('/edit-survey/{slug}', function ($slug) {
     $survey = \App\Models\Survey::with('questions.options')->where('slug', $slug)->firstOrFail();

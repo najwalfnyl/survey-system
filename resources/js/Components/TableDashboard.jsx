@@ -12,7 +12,7 @@ export default function SurveyTable() {
   const statusStyle = {
     draft: "bg-[#EAF6FA] text-[#0689FF]",
     open: "bg-[#D1FFD3] text-[#0B7E00]",
-    close: "bg-[#FFDBD9] text-[#F84B40]",
+    closed: "bg-[#FFDBD9] text-[#F84B40]",  // Red color for closed
   };
 
   return (
