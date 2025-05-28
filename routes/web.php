@@ -94,7 +94,11 @@ Route::post('/status-survey/{slug}/set-status', [SurveyController::class, 'setSt
 // routes/api.php
 
 Route::get('/edit-survey/{slug}', function ($slug) {
-    $survey = \App\Models\Survey::with('questions.options')->where('slug', $slug)->firstOrFail();
+    $survey = \App\Models\Survey::with(
+        'questions.options',
+        'questions.likertScales',
+        'questions.entities'
+    )->where('slug', $slug)->firstOrFail();
     return Inertia::render('CreateSurvey', [  // pakai CreateSurvey view
         'mode' => 'edit',
         'survey' => $survey

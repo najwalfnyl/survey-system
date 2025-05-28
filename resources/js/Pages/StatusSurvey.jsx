@@ -17,30 +17,36 @@ const SurveyStatusBox = () => {
             const payload = {
                 status: "draft", // atau nanti "open"
             };
-    
+
             // Kirim sesuai status_mode
             if (status === "Private") {
                 payload.status_mode = "Private";
                 payload.max_responses = parseInt(maxResponses) || null;
             }
-    
+
             if (status === "Terbatas") {
                 payload.status_mode = "Terbatas";
-                payload.start_date = startDate || null;
-                payload.end_date = endDate || null;
+
+                if (startDate.trim() !== "") {
+                    payload.start_date = startDate;
+                }
+
+                if (endDate.trim() !== "") {
+                    payload.end_date = endDate;
+                }
             }
-    
+
             if (status === "Tanpa batasan") {
                 payload.status_mode = "Tanpa batasan";
             }
-    
+
             await axios.post(`/status-survey/${slug}/set-status`, payload);
             router.visit(`/collect-survey/${slug}`);
         } catch (error) {
             console.error("Gagal update status:", error.response?.data || error);
             alert("Gagal mengaktifkan survei.");
         }
-    };    
+    };
 
     return (
         <AuthenticatedLayout>

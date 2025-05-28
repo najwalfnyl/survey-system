@@ -43,9 +43,14 @@ class SurveyController extends Controller
     }
 
     public function show(Survey $survey)
-    {
-        return $survey->load('questions.options');
-    }
+{
+    return $survey->load([
+        'questions.options',
+        'questions.likertScales',
+        'questions.entities'
+    ]);
+}
+
 
     public function updateTitle(Request $request, Survey $survey)
     {
@@ -60,6 +65,21 @@ class SurveyController extends Controller
             'survey' => $survey
         ]);
     }
+
+    public function showBySlug($slug)
+{
+    $survey = \App\Models\Survey::with([
+        'questions.options',
+        'questions.likertScales',
+        'questions.entities'
+    ])->where('slug', $slug)->first();
+
+    if (!$survey) {
+        return response()->json(['message' => 'Survey not found'], 404);
+    }
+
+    return response()->json($survey);
+}
 
     public function getBySlug($slug)
 {
@@ -159,6 +179,64 @@ if ($q['question_type'] === 'Likert Scale' && !empty($q['likertLabels'])) {
     return response()->json(['message' => 'Questions saved successfully']);
 }
 
+public function patchQuestions(Request $request, Survey $survey)
+{
+    $data = $request->validate([
+        'questions' => 'required|array',
+        'questions.*.id' => 'required|integer|exists:survey_questions,id',
+        'questions.*.question_text' => 'sometimes|string',
+        'questions.*.question_type' => 'sometimes|string|in:Text,Multiple Choices,Likert Scale',
+        'questions.*.choices' => 'nullable|array',
+        'questions.*.choices.*' => 'string',
+        'questions.*.likertLabels' => 'nullable|array',
+        'questions.*.likertLabels.*' => 'string',
+        'questions.*.entities' => 'nullable|array',
+        'questions.*.entities.*' => 'string',
+        'questions.*.placeholder_text' => 'nullable|string',
+    ]);
+
+    foreach ($data['questions'] as $q) {
+        $question = \App\Models\SurveyQuestion::find($q['id']);
+
+        // Update kolom yang dikirim saja
+        $question->fill([
+            'question_text' => $q['question_text'] ?? $question->question_text,
+            'question_type' => $q['question_type'] ?? $question->question_type,
+            'placeholder_text' => $q['placeholder_text'] ?? $question->placeholder_text,
+        ])->save();
+
+        // Hanya update opsi/entitas/likert kalau dikirim
+        if (array_key_exists('choices', $q)) {
+            $question->options()->delete();
+            foreach ($q['choices'] as $choice) {
+                if (!empty($choice)) {
+                    $question->options()->create(['option_text' => $choice]);
+                }
+            }
+        }
+
+        if (array_key_exists('likertLabels', $q)) {
+            $question->likertScales()->delete();
+            foreach ($q['likertLabels'] as $index => $label) {
+                $question->likertScales()->create([
+                    'scale_value' => $index + 1,
+                    'scale_label' => $label,
+                ]);
+            }
+        }
+
+        if (array_key_exists('entities', $q)) {
+            $question->entities()->delete();
+            foreach ($q['entities'] as $entity) {
+                $question->entities()->create(['entity_name' => $entity]);
+            }
+        }
+    }
+
+    return response()->json(['message' => 'Questions patched successfully']);
+}
+
+
     // Survey.php
 public function questions() {
     return $this->hasMany(SurveyQuestion::class);
@@ -175,22 +253,26 @@ public function setStatus(Request $request, $slug)
 {
     $survey = Survey::where('slug', $slug)->firstOrFail();
 
-    $data = $request->validate([
+    $data = $request->all(); // Ambil semua inputan tanpa asumsi
+
+    $validated = validator($data, [
         'status' => 'required|in:draft,open,closed',
         'status_mode' => 'nullable|string',
         'max_responses' => 'nullable|integer',
         'start_date' => 'nullable|date',
         'end_date' => 'nullable|date',
-    ]);
+    ])->validate();
 
-    // Hapus pengecekan status closed supaya bisa diubah bebas
+    // Hindari error key tidak ada
+    $validated['start_date'] = $data['start_date'] ?? null;
+    $validated['end_date'] = $data['end_date'] ?? null;
 
     $survey->update([
-        'status' => $data['status'],
-        'status_mode' => $data['status_mode'] ?? null,
-        'max_responses' => $data['max_responses'] ?? null,
-        'start_date' => $data['start_date'] ?? null,
-        'end_date' => $data['end_date'] ?? null,
+        'status' => $validated['status'],
+        'status_mode' => $validated['status_mode'] ?? null,
+        'max_responses' => $validated['max_responses'] ?? null,
+        'start_date' => $validated['start_date'],
+        'end_date' => $validated['end_date'],
     ]);
 
     return response()->json([
@@ -242,6 +324,13 @@ public function storeResponses(Request $request, $slug)
                 'answer_text' => $answerValue['answer_text'],
             ]);
         }
+    }
+
+    // ✅ Tambahkan pengecekan setelah jawaban berhasil disimpan
+    $totalResponses = $survey->responses()->count();
+
+    if ($survey->status_mode === 'Private' && $survey->max_responses && $totalResponses >= $survey->max_responses) {
+        $survey->update(['status' => 'closed']);
     }
 
     return response()->json(['message' => 'Responses saved successfully']);
@@ -408,10 +497,11 @@ public function respondentData($slug)
     ]);
 }
 
-
 public function dashboard()
 {
-    $surveys = Survey::orderBy('updated_at', 'desc')->get();
+    $surveys = \App\Models\Survey::withCount('responses')
+        ->orderBy('updated_at', 'desc')
+        ->get();
 
     return Inertia::render('Dashboard', [
         'auth' => [
@@ -420,6 +510,7 @@ public function dashboard()
         'surveys' => $surveys
     ]);
 }
+
 
 public function exportCsv($slug)
 {

@@ -47,6 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/surveys', [SurveyController::class, 'store']);
     Route::get('/surveys/{survey}', [SurveyController::class, 'show']);
     Route::patch('/surveys/{survey}/update-title', [SurveyController::class, 'updateTitle']);
+    Route::patch('/surveys/{survey}/questions', [SurveyController::class, 'patchQuestions']);
+    Route::get('/surveys/{slug}', [SurveyController::class, 'showBySlug']);
+
     // Route::post('/surveys/{survey:slug}/set-status', [SurveyController::class, 'setStatus']);
     Route::post('/surveys/{survey}/questions', [SurveyController::class, 'storeQuestions']);
 Route::patch('/status-survey/{slug}/set-status', [SurveyController::class, 'setStatus']);

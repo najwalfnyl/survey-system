@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Survey extends Model
 {
-    protected $fillable = ['user_id', 'title', 'description', 'slug', 'qr_code', 'status'];
+    protected $fillable = ['user_id', 'title', 'description', 'slug', 'qr_code', 'status', 'max_responses', 'start_date', 'end_date'];
 
     public function user() {
         return $this->belongsTo(User::class);

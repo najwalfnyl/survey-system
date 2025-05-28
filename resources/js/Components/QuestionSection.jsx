@@ -1,97 +1,85 @@
 import { useState, useEffect } from "react";
 
-export default function QuestionSection({ onQuestionsChange }) {
-  const [questions, setQuestions] = useState([
-    {
-      id: 1,
-      text: "",
-      type: "Choose Type",
-      isOpen: false,
-      choices: [],
-      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-      placeholderText: "",
-      entities: [], // Mengubah dari string menjadi array untuk mendukung banyak entitas
-    },
-    {
-      id: 2,
-      text: "",
-      type: "Choose Type",
-      isOpen: false,
-      choices: [],
-      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-      placeholderText: "",
-      entities: [],
-    },
-    {
-      id: 3,
-      text: "",
-      type: "Choose Type",
-      isOpen: false,
-      choices: [],
-      likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-      placeholderText: "",
-      entities: [],
-    }
-  ]);
-
-  const options = [
-    { label: "Multiple Choices", icon: "📋" },
-    { label: "Text", icon: "📝" },
-    { label: "Likert Scale", icon: "📊" }
-  ];
+export default function QuestionSection({ initialQuestions = [], onQuestionsChange }) {
+  const [questions, setQuestions] = useState([]);
 
   useEffect(() => {
-    if (onQuestionsChange) {
-      onQuestionsChange(questions);
+    if (initialQuestions.length > 0) {
+      setQuestions(initialQuestions);
+    } else {
+      // Default hanya jika kosong total
+      setQuestions([
+        {
+          id: Date.now(), // sementara ID acak
+          text: "",
+          type: "Choose Type",
+          isOpen: false,
+          choices: [],
+          likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+          placeholderText: "",
+          entities: [],
+        },
+      ]);
+    }
+  }, [initialQuestions]);
+
+
+  useEffect(() => {
+    if (typeof onQuestionsChange === 'function') {
+      // Cegah update loop tak terbatas
+      const timeout = setTimeout(() => {
+        onQuestionsChange(questions);
+      }, 100); // debounce ringan
+
+      return () => clearTimeout(timeout);
     }
   }, [questions]);
 
+
   const handleChange = (index, key, value) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index][key] = value;
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index][key] = value;
+    setQuestions(updated);
   };
 
   const addChoice = (index) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index].choices.push("");
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index].choices.push("");
+    setQuestions(updated);
   };
 
   const removeChoice = (index, choiceIndex) => {
-    const updatedQuestions = [...questions];
-    if (updatedQuestions[index].choices.length > 1) {
-      updatedQuestions[index].choices.splice(choiceIndex, 1);
-      setQuestions(updatedQuestions);
-    }
+    const updated = [...questions];
+    updated[index].choices.splice(choiceIndex, 1);
+    setQuestions(updated);
   };
 
   const updateLikertLabel = (index, labelIndex, value) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index].likertLabels[labelIndex] = value;
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index].likertLabels[labelIndex] = value;
+    setQuestions(updated);
   };
 
   const addEntity = (index) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index].entities.push(""); // Tambahkan entitas kosong
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index].entities.push("");
+    setQuestions(updated);
   };
 
   const updateEntity = (index, entityIndex, value) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index].entities[entityIndex] = value; // Perbarui entitas berdasarkan indeks
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index].entities[entityIndex] = value;
+    setQuestions(updated);
   };
 
   const removeEntity = (index, entityIndex) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[index].entities.splice(entityIndex, 1); // Hapus entitas berdasarkan indeks
-    setQuestions(updatedQuestions);
+    const updated = [...questions];
+    updated[index].entities.splice(entityIndex, 1);
+    setQuestions(updated);
   };
 
   const handleAddQuestion = () => {
-    const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+    const newId = Date.now(); // ID unik sementara
     const newQuestion = {
       id: newId,
       text: "",
@@ -100,17 +88,23 @@ export default function QuestionSection({ onQuestionsChange }) {
       choices: [],
       likertLabels: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
       placeholderText: "",
-      entities: [], // Inisialisasi entitas sebagai array kosong
+      entities: [],
     };
     setQuestions([...questions, newQuestion]);
   };
 
   const handleDeleteQuestion = (index) => {
-    if (questions.length === 1) return; // Minimal 1 pertanyaan wajib ada
+    if (questions.length === 1) return;
     const updated = [...questions];
     updated.splice(index, 1);
     setQuestions(updated);
   };
+
+  const options = [
+    { label: "Multiple Choices", icon: "📋" },
+    { label: "Text", icon: "📝" },
+    { label: "Likert Scale", icon: "📊" },
+  ];
 
   return (
     <div>
@@ -119,8 +113,6 @@ export default function QuestionSection({ onQuestionsChange }) {
       <div className="space-y-3 mt-3">
         {questions.map((question, index) => (
           <div key={question.id} className="px-4 py-3 border rounded bg-[#E5E5E5] relative">
-
-            {/* Tombol Hapus */}
             {questions.length > 1 && (
               <button
                 onClick={() => handleDeleteQuestion(index)}
@@ -132,7 +124,7 @@ export default function QuestionSection({ onQuestionsChange }) {
             )}
 
             <div className="flex items-center gap-3">
-              <span className="text-gray-800 font-bold text-lg">{(index + 1).toString().padStart(2, "0")}</span>
+              <span className="text-gray-800 font-bold text-lg">{String(index + 1).padStart(2, "0")}</span>
 
               <input
                 type="text"
@@ -160,21 +152,10 @@ export default function QuestionSection({ onQuestionsChange }) {
                         onClick={() => {
                           handleChange(index, "type", option.label);
                           handleChange(index, "isOpen", false);
-
-                          if (option.label === "Multiple Choices") {
-                            handleChange(index, "choices", [""]);
-                          } else {
-                            handleChange(index, "choices", []);
-                          }
-
-                          if (option.label === "Text") {
-                            handleChange(index, "placeholderText", "Enter your response...");
-                          } else {
-                            handleChange(index, "placeholderText", "");
-                          }
-
+                          handleChange(index, "choices", option.label === "Multiple Choices" ? [""] : []);
+                          handleChange(index, "placeholderText", option.label === "Text" ? "Enter your response..." : "");
                           if (option.label === "Likert Scale") {
-                            handleChange(index, "entities", []); // Reset entitas saat memilih Likert
+                            handleChange(index, "entities", ["Item 1"]);
                           }
                         }}
                       >
@@ -194,7 +175,7 @@ export default function QuestionSection({ onQuestionsChange }) {
                   className="border border-gray-400 ml-4 p-2 text-sm w-[77%] rounded mt-1"
                   placeholder="Text answer placeholder..."
                   value={question.placeholderText}
-                  onChange={(e) => handleChange(index, 'placeholderText', e.target.value)}
+                  onChange={(e) => handleChange(index, "placeholderText", e.target.value)}
                 />
               </div>
             )}
@@ -209,9 +190,9 @@ export default function QuestionSection({ onQuestionsChange }) {
                       className="border border-gray-400 text-sm p-2 w-full rounded mr-1"
                       value={choice}
                       onChange={(e) => {
-                        const updatedQuestions = [...questions];
-                        updatedQuestions[index].choices[choiceIndex] = e.target.value;
-                        setQuestions(updatedQuestions);
+                        const updated = [...questions];
+                        updated[index].choices[choiceIndex] = e.target.value;
+                        setQuestions(updated);
                       }}
                     />
                     <button
@@ -278,7 +259,6 @@ export default function QuestionSection({ onQuestionsChange }) {
         ))}
       </div>
 
-      {/* Tombol Tambah Pertanyaan */}
       <div className="mt-6 flex justify-center">
         <button
           onClick={handleAddQuestion}

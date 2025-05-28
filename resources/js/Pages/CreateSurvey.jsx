@@ -6,12 +6,12 @@ import API, { setAuthToken } from "../services/api";
 
 export default function CreateSurvey({ survey, token }) {
     const { survey: pageSurvey } = usePage().props;
-    const fullLink = pageSurvey ? `http://127.0.0.1:8000/respond/${pageSurvey.slug}` : ''; // Fallback jika pageSurvey belum ada
+    const fullLink = pageSurvey ? `http://127.0.0.1:8000/respond/${pageSurvey.slug}` : '';
     const [currentSurvey, setCurrentSurvey] = useState(survey);
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(survey?.title || "UNTITLED");
     const [tempTitle, setTempTitle] = useState(title);
-    const [status, setStatus] = useState(survey?.status || "draft"); // Menambahkan status ke state
+    const [status, setStatus] = useState(survey?.status || "draft");
     const [loading, setLoading] = useState(false);
     const [questions, setQuestions] = useState([]);
 
@@ -22,6 +22,24 @@ export default function CreateSurvey({ survey, token }) {
         }
     }, []);
 
+    // Load pertanyaan dari backend
+    useEffect(() => {
+        if (!survey?.questions) return;
+
+        const loadedQuestions = survey.questions.map((q) => ({
+            id: q.id,
+            text: q.question_text,
+            type: q.question_type,
+            choices: q.options?.map(opt => opt.option_text) || [],
+            likertLabels: q.likert_scales?.map(s => s.scale_label) || [],
+            entities: q.entities?.map(e => e.entity_name) || [],
+            placeholderText: q.placeholder_text || "",
+        }));
+
+        setQuestions(loadedQuestions);
+    }, [survey]);
+
+
     const handleCopy = () => {
         navigator.clipboard.writeText(fullLink);
         alert("Link copied to clipboard!");
@@ -29,18 +47,16 @@ export default function CreateSurvey({ survey, token }) {
 
     const handleEdit = () => {
         setTempTitle(title);
-        setStatus(currentSurvey?.status || "draft"); // Set status saat mulai edit
+        setStatus(currentSurvey?.status || "draft");
         setIsEditing(true);
     };
 
     const handleSave = async () => {
         setLoading(true);
-
         try {
             const slug = tempTitle.toLowerCase().replace(/\s+/g, "-");
 
             if (!currentSurvey?.id) {
-                // Buat survei baru
                 const response = await API.post("/surveys", {
                     title: tempTitle,
                     description: null,
@@ -48,26 +64,19 @@ export default function CreateSurvey({ survey, token }) {
                     status,
                     qr_code: null,
                 });
-
                 setCurrentSurvey(response.data.survey);
             } else {
-                // Update survei lama
                 const response = await API.patch(`/surveys/${currentSurvey.id}/update-title`, {
                     title: tempTitle,
-                    status, // Pastikan status diperbarui
+                    status,
                 });
-
                 setCurrentSurvey(response.data.survey);
             }
 
             setTitle(tempTitle);
             setIsEditing(false);
-            console.log("Survey berhasil disimpan:", tempTitle);
         } catch (error) {
-            console.error("Gagal menyimpan survei:", error);
-            if (error.response) {
-                console.error("Response:", error.response.data);
-            }
+            console.error("Gagal menyimpan survei:", error.response?.data || error);
         } finally {
             setLoading(false);
         }
@@ -79,7 +88,6 @@ export default function CreateSurvey({ survey, token }) {
 
     const handleDone = async () => {
         if (!currentSurvey?.id) return;
-
         try {
             const response = await API.post(`/surveys/${currentSurvey.id}/questions`, {
                 questions: questions.map((q) => ({
@@ -91,25 +99,17 @@ export default function CreateSurvey({ survey, token }) {
                     placeholder_text: q.placeholderText || "",
                 })),
             });
-
-            console.log("Berhasil menyimpan pertanyaan!", response.data);
-
-            // Redirect ke halaman preview survei
             router.visit(`/survey-preview/${currentSurvey.slug}`);
         } catch (error) {
             console.error("Gagal menyimpan pertanyaan:", error.response?.data || error);
         }
     };
 
-    // Fungsi untuk menyimpan perubahan status
     const handleSaveStatus = async () => {
         try {
             const response = await API.patch(`/status-survey/${currentSurvey.slug}/set-status`, {
-                status, // Status yang akan diperbarui
+                status,
             });
-
-
-            // Update survei setelah status disimpan
             setCurrentSurvey(response.data.survey);
             alert('Status updated successfully!');
         } catch (error) {
@@ -118,18 +118,57 @@ export default function CreateSurvey({ survey, token }) {
         }
     };
 
+    const handleUpdateQuestions = async () => {
+        if (!currentSurvey?.id) return;
+
+        const hasEmptyText = questions.some((q) => !q.text || q.text.trim() === "");
+        const hasInvalidType = questions.some((q) => q.type === "Choose Type");
+        const hasLikertWithoutEntities = questions.some(
+            (q) => q.type === "Likert Scale" && (!q.entities || q.entities.filter(e => e.trim() !== "").length === 0)
+        );
+
+        if (hasEmptyText) {
+            alert("Semua pertanyaan harus memiliki teks.");
+            return;
+        }
+        if (hasInvalidType) {
+            alert("Ada pertanyaan yang belum dipilih tipenya.");
+            return;
+        }
+        if (hasLikertWithoutEntities) {
+            alert("Pertanyaan Likert Scale harus memiliki minimal 1 entitas.");
+            return;
+        }
+
+        try {
+            const response = await API.patch(`/surveys/${currentSurvey.id}/questions`, {
+                questions: questions.map((q) => ({
+                    id: q.id,
+                    question_text: q.text,
+                    question_type: q.type,
+                    choices: (q.choices || []).filter(c => typeof c === "string" && c.trim() !== ""),
+                    likertLabels: (q.likertLabels || []).filter(l => typeof l === "string" && l.trim() !== ""),
+                    entities: (q.entities || []).filter(e => typeof e === "string" && e.trim() !== ""),
+                    placeholder_text: q.placeholderText || "",
+                })),
+            });
+            alert("Pertanyaan berhasil diperbarui!");
+        } catch (error) {
+            console.error("Gagal update pertanyaan:", error.response?.data || error);
+            alert("Gagal update pertanyaan.");
+        }
+    };
+
+
     return (
         <AuthenticatedLayout>
             <Head title="Create Survey" />
-
             <div className="py-12 px-7">
                 <div className="p-6 bg-white rounded-lg shadow-md max-w-7xl mx-auto">
-                    {/* Page Title */}
                     <div className="border-b pb-2">
                         <h2 className="text-lg font-bold text-gray-800">Create New Survey</h2>
                     </div>
 
-                    {/* Title Section */}
                     <div className="flex justify-between items-center border-b pb-2 mt-2">
                         {isEditing ? (
                             <div className="w-full flex items-center gap-2">
@@ -139,103 +178,78 @@ export default function CreateSurvey({ survey, token }) {
                                     onChange={(e) => setTempTitle(e.target.value)}
                                     className="flex-1 px-3 py-2 border rounded-lg text-gray-800"
                                 />
-                                <button
-                                    onClick={handleCancel}
-                                    className="text-sm text-gray-500 px-3 py-1 border rounded-lg"
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="text-sm text-white bg-green-500 px-3 py-1 rounded-lg"
-                                    disabled={loading}
-                                >
+                                <button onClick={handleCancel} className="text-sm text-gray-500 px-3 py-1 border rounded-lg" disabled={loading}>Cancel</button>
+                                <button onClick={handleSave} className="text-sm text-white bg-green-500 px-3 py-1 rounded-lg" disabled={loading}>
                                     {loading ? "Saving..." : "Save"}
                                 </button>
                             </div>
                         ) : (
                             <>
                                 <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
-                                <button
-                                    onClick={handleEdit}
-                                    className="text-sm text-gray-500 px-3 py-1 border rounded-lg"
-                                    disabled={loading}
-                                >
-                                    Edit
-                                </button>
+                                <button onClick={handleEdit} className="text-sm text-gray-500 px-3 py-1 border rounded-lg" disabled={loading}>Edit</button>
                             </>
                         )}
                     </div>
 
-                    {/* Question Section */}
-                    <QuestionSection onQuestionsChange={setQuestions} />
+                    <QuestionSection initialQuestions={questions} onQuestionsChange={setQuestions} />
 
-                    {/* Full Link (Only shown if survey has an ID, i.e. after creation or editing) */}
+                    {currentSurvey?.id && fullLink && (
+                        <div className="text-center mt-4">
+                            <button onClick={handleUpdateQuestions} className="px-6 py-2 rounded-lg font-semibold bg-blue-500 text-white hover:bg-blue-600">
+                                Update Pertanyaan
+                            </button>
+                        </div>
+                    )}
+
                     {currentSurvey?.id && fullLink && (
                         <div className="bg-gray-200 p-3 rounded-sm text-sm items-center gap-3 mt-4 w-full">
-                            {/* Teks Penjelasan */}
-                            <div className="w-3/4 mb-2 text-lg text-black-600 font-semibold">
-                                Link Akses Survey
-                            </div>
-                            {/* Icon dan Link */}
+                            <div className="w-3/4 mb-2 text-lg text-black-600 font-semibold">Link Akses Survey</div>
                             <div className="flex items-center gap-3 w-full">
                                 <span className="text-xl">🔗</span>
-                                <input
-                                    type="text"
-                                    value={fullLink}
-                                    readOnly
-                                    className="border border-gray-300 p-2 text-sm rounded-sm bg-white w-full text-gray-700"
-                                />
-                                <button
-                                    onClick={handleCopy}
-                                    className="border border-gray-300 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100"
-                                >
-                                    Copy
-                                </button>
+                                <input type="text" value={fullLink} readOnly className="border border-gray-300 p-2 text-sm rounded-sm bg-white w-full text-gray-700" />
+                                <button onClick={handleCopy} className="border border-gray-300 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100">Copy</button>
                             </div>
                         </div>
                     )}
 
-                    {/* Status Section */}
                     {currentSurvey?.id && fullLink && (
                         <div className="bg-gray-200 p-3 rounded-sm text-sm items-center gap-3 mt-4 w-full">
-                             <div className="w-3/4 mb-2 text-lg text-black-600 font-semibold">
-                                Atur Status Survey
-                            </div>
-                             <div className="flex items-center gap-3 w-full">
-                            <select
-                                id="status"
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                            >
-                                <option value="draft">Draft</option>
-                                <option value="open">Open</option>
-                                <option value="closed">Closed</option>
-                            </select>
-                            <button
-                                   onClick={handleSaveStatus} // Menambahkan tombol untuk menyimpan status
-                                className="border border-gray-300 w-1/4 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100"
-                            >
-                                Save Status
-                                </button>
+                            <div className="w-3/4 mb-2 text-lg text-black-600 font-semibold">Atur Status Survey</div>
+                            <div className="flex items-center gap-3 w-full">
+                                <select
+                                    id="status"
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value)}
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                >
+                                    <option value="draft">Draft</option>
+                                    <option value="open">Open</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                                <button onClick={handleSaveStatus} className="border border-gray-300 w-1/4 text-sm px-4 py-2 rounded-sm bg-white text-gray-700 hover:bg-gray-100">Save Status</button>
                             </div>
                         </div>
                     )}
 
-                    {/* Submit Button */}
                     <div className="text-center mt-6">
-                        <button
-                            className={`px-6 py-2 rounded-lg font-semibold ${currentSurvey?.id
-                                ? "bg-green-500 text-white hover:bg-green-600"
-                                : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                }`}
-                            onClick={handleDone}
-                        >
-                            DONE
-                        </button>
+                        {(currentSurvey?.id && fullLink) ? (
+                            <button
+                                className="px-6 py-2 rounded-lg font-semibold bg-gray-500 text-white hover:bg-gray-600"
+                                onClick={() => router.visit('/dashboard')} // Atau pakai window.history.back() kalau mau kembali ke halaman sebelumnya
+                            >
+                                Back
+                            </button>
+                        ) : (
+                            <button
+                                className="px-6 py-2 rounded-lg font-semibold bg-green-500 text-white hover:bg-green-600"
+                                onClick={handleDone}
+                            >
+                                DONE
+                            </button>
+                        )}
                     </div>
+
+
                 </div>
             </div>
         </AuthenticatedLayout>
